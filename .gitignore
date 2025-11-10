@@ -1,0 +1,15 @@
+/results
+/__pycache__
+.idea
+.vscode
+.claude
+.pytest_cache
+.pytest_cache/
+.pytest_cache/v/
+.pytest_cache/v/cache/
+.pytest_cache/v/cache/lastfailed
+.pytest_cache/v/cache/nodeids
+.pytest_cache/v/cache/stepwise
+.pytest_cache/v/cache/lastfailed
+.pytest_cache/v/cache/nodeids
+.pytest_cache/v/cache/stepwise
