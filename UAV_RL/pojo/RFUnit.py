@@ -36,8 +36,9 @@ class RFUnit:
         self.prev_jam_channel = self.jam_channel
 
         # 干扰状态（每回合更新）
-        self.is_comm_jammed = False     # 是否被干扰
-        self.jam_success_count = 0       # 本回合成功干扰敌人数量
+        self.is_comm_jammed = False
+        self.jam_success_enemy_count = 0  # 成功干扰敌人数量
+        self.jam_success_ally_count = 0   # 误伤友军数量（友伤）
 
     def set_channels(self, comm_ch: int, jam_ch: int):
         """
@@ -74,6 +75,6 @@ class RFUnit:
         self.jam_channel = new_jam
     
     def reset_status(self):
-        """重置干扰状态（每回合开始调用）"""
         self.is_comm_jammed = False
-        self.jam_success_count = 0
+        self.jam_success_enemy_count = 0
+        self.jam_success_ally_count = 0

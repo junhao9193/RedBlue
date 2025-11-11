@@ -40,4 +40,5 @@ fuel_reduction_penalty = -1.0    # 减少队友燃油惩罚
 
 # 电磁对抗奖励
 jam_reward = 0.1                 # 成功干扰敌人奖励（每个敌人）
+jam_ally_penalty = -0.2          # 误伤友军惩罚（比干扰敌人的负值更大）
 jammed_penalty = -0.1            # 被敌人干扰惩罚

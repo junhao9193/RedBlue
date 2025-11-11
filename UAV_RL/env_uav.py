@@ -282,12 +282,16 @@ class UAVEnv:
 
                 # 干扰条件1：信道匹配
                 # 干扰条件2：在可见范围内
+                
                 if (attacker.rf_unit.jam_channel == target.rf_unit.comm_channel and
                     distance <= config.uav.visibility_range):
-                    # 目标被干扰
                     target.rf_unit.is_comm_jammed = True
-                    # 攻击者成功干扰计数+1
-                    attacker.rf_unit.jam_success_count += 1
+                    
+                    # 区分敌人和友军
+                    if target.team != attacker.team:
+                        attacker.rf_unit.jam_success_enemy_count += 1  # 干扰敌人
+                    else:
+                        attacker.rf_unit.jam_success_ally_count += 1   # 误伤友军
 
         # 3. 应用干扰伤害
         for uav in self.uavs:
@@ -393,7 +397,10 @@ class UAVEnv:
         # 3. 电磁对抗奖励
         for uav in self.red_uavs:
             # 成功干扰敌人的奖励
-            reward[uav.uid] += uav.rf_unit.jam_success_count * config.reward.jam_reward
+            reward[uav.uid] += uav.rf_unit.jam_success_enemy_count * config.reward.jam_reward
+
+            # 误伤友军的惩罚
+            reward[uav.uid] += uav.rf_unit.jam_success_ally_count * config.reward.jam_ally_penalty
 
             # 被干扰的惩罚
             if uav.rf_unit.is_comm_jammed:
@@ -500,7 +507,7 @@ class UAVEnv:
 
         # 获取奖励、观测、信息
         reward = self.get_reward()
-        obs = self.get_obs()
+        obs = self.Normalization(self.get_obs())
         info = self.get_info()
 
         return obs, reward, self.terminated, self.truncated, info
@@ -520,7 +527,7 @@ class UAVEnv:
         self.step_ = 0
         self.policy = policy_num
 
-        return self.get_obs(), {}
+        return self.Normalization(self.get_obs()), {}
 
     def action_space(self, agent_id):
         """返回动作空间
@@ -542,3 +549,71 @@ class UAVEnv:
         from gymnasium import spaces
         obs = self.get_obs()
         return spaces.Box(0, 1, shape=(len(obs[agent_id]),), dtype=np.float32)
+
+    def Normalization(self, obs: Observation) -> Observation:
+        """归一化观测值到[0,1]范围
+
+        根据 config.observation_space 中定义的范围进行归一化
+
+        观测结构：
+        - [0:2]   位置 (x, y)
+        - [2]     hp
+        - [3]     speed
+        - [4]     missiles
+        - [5]     fuel
+        - [6]     comm_channel
+        - [7]     jam_channel
+        - [8:14]  敌人位置 (x, y) × 3
+
+        :param obs: 原始观测字典
+        :return: 归一化后的观测字典
+        """
+        normalized_obs = {}
+
+        for k in obs.keys():
+            obs_copy = obs[k].copy()
+
+            # 归一化自己的状态
+            # x, y 位置
+            obs_copy[0] = (obs_copy[0] - config.observation_space["x"][0]) / \
+                         (config.observation_space["x"][1] - config.observation_space["x"][0])
+            obs_copy[1] = (obs_copy[1] - config.observation_space["y"][0]) / \
+                         (config.observation_space["y"][1] - config.observation_space["y"][0])
+
+            # hp
+            obs_copy[2] = (obs_copy[2] - config.observation_space["hp"][0]) / \
+                         (config.observation_space["hp"][1] - config.observation_space["hp"][0])
+
+            # speed
+            obs_copy[3] = (obs_copy[3] - config.observation_space["speed"][0]) / \
+                         (config.observation_space["speed"][1] - config.observation_space["speed"][0])
+
+            # missiles
+            obs_copy[4] = (obs_copy[4] - config.observation_space["missile"][0]) / \
+                         (config.observation_space["missile"][1] - config.observation_space["missile"][0])
+
+            # fuel
+            obs_copy[5] = (obs_copy[5] - config.observation_space["fuel"][0]) / \
+                         (config.observation_space["fuel"][1] - config.observation_space["fuel"][0])
+
+            # comm_channel
+            obs_copy[6] = (obs_copy[6] - config.observation_space["channel"][0]) / \
+                         (config.observation_space["channel"][1] - config.observation_space["channel"][0])
+
+            # jam_channel
+            obs_copy[7] = (obs_copy[7] - config.observation_space["channel"][0]) / \
+                         (config.observation_space["channel"][1] - config.observation_space["channel"][0])
+
+            # 归一化敌人位置（从第8维开始，每2维是一个敌人的x, y）
+            n = len(obs_copy)
+            for i in range(8, n, 2):
+                # x 坐标
+                obs_copy[i] = (obs_copy[i] - config.observation_space["x"][0]) / \
+                             (config.observation_space["x"][1] - config.observation_space["x"][0])
+                # y 坐标
+                obs_copy[i+1] = (obs_copy[i+1] - config.observation_space["y"][0]) / \
+                               (config.observation_space["y"][1] - config.observation_space["y"][0])
+
+            normalized_obs[k] = obs_copy
+
+        return normalized_obs
