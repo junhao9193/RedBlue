@@ -31,6 +31,10 @@ class RFUnit:
         self.comm_channel = random.randint(0, self.num_channels - 1)   # 防御信道 [0-9]
         self.jam_channel = random.randint(0, self.num_channels - 1)    # 攻击信道 [0-9]
 
+        # 记录上一步的信道（用于判断是否切换）
+        self.prev_comm_channel = self.comm_channel
+        self.prev_jam_channel = self.jam_channel
+
         # 干扰状态（每回合更新）
         self.is_comm_jammed = False     # 是否被干扰
         self.jam_success_count = 0       # 本回合成功干扰敌人数量
@@ -39,11 +43,35 @@ class RFUnit:
         """
         设置信道（由智能体动作决定）
 
+        切换信道会消耗燃油：
+        - 切换防御信道：消耗 comm_switch_cost 燃油
+        - 切换攻击信道：消耗 jam_switch_cost 燃油
+        - 两个都切换：消耗总和
+
         :param comm_ch: 防御信道 [0-9]
         :param jam_ch: 攻击信道 [0-9]
         """
-        self.comm_channel = int(comm_ch) % self.num_channels
-        self.jam_channel = int(jam_ch) % self.num_channels
+        new_comm = int(comm_ch) % self.num_channels
+        new_jam = int(jam_ch) % self.num_channels
+
+        # 计算切换成本
+        fuel_cost = 0
+        if new_comm != self.prev_comm_channel:
+            fuel_cost += config.RFUnit.comm_switch_cost
+        if new_jam != self.prev_jam_channel:
+            fuel_cost += config.RFUnit.jam_switch_cost
+
+        # 扣除燃油
+        self.owner.fuel -= fuel_cost
+        self.owner.fuel = max(0, self.owner.fuel)
+
+        # 更新上一步的信道记录
+        self.prev_comm_channel = self.comm_channel
+        self.prev_jam_channel = self.jam_channel
+
+        # 更新当前信道
+        self.comm_channel = new_comm
+        self.jam_channel = new_jam
     
     def reset_status(self):
         """重置干扰状态（每回合开始调用）"""
