@@ -20,3 +20,10 @@ damage = 3 # 最大伤害值
 
 [RFUnit]
 num_channels = 10  # 信道数量（可调整）
+# 信道切换成本
+comm_switch_cost = 0.5  # 切换通信信道消耗燃油
+jam_switch_cost = 0.5   # 切换干扰信道消耗燃油
+# 干扰效果
+jam_damage = 0.3        # 每步被干扰扣除HP（直接伤害）
+jam_reward = 0.1        # 干扰成功的奖励（给攻击方）
+jammed_penalty = -0.1   # 被干扰的惩罚（给被攻击方）
