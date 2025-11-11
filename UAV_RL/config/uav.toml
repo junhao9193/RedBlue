@@ -19,3 +19,4 @@ damage_radius = 5 # 毁伤范围
 damage = 3 # 最大伤害值
 
 [RFUnit]
+num_channels = 10  # 信道数量（可调整）

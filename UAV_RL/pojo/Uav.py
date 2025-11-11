@@ -53,6 +53,10 @@ class Uav:
         self.uid = f"{team}-uav-{Uav.id_counter[team]}"
         Uav.id_counter[team] += 1
 
+         # 添加射频单元
+        from .RFUnit import RFUnit
+        self.rf_unit = RFUnit(self)
+
     @staticmethod
     def clip(v: Number, _min: Number, _max: Number) -> Number:
         """裁剪函数，限制值在最小值和最大值之间"""
