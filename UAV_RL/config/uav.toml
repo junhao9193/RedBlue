@@ -25,5 +25,19 @@ comm_switch_cost = 0.5  # 切换通信信道消耗燃油
 jam_switch_cost = 0.5   # 切换干扰信道消耗燃油
 # 干扰效果
 jam_damage = 0.3        # 每步被干扰扣除HP（直接伤害）
-jam_reward = 0.1        # 干扰成功的奖励（给攻击方）
-jammed_penalty = -0.1   # 被干扰的惩罚（给被攻击方）
+
+[reward]
+# 基础奖励
+wall_collision_penalty = -0.1   # 碰壁惩罚（会乘以step_size）
+kill_reward = 3.0                # 击杀敌人奖励
+kill_penalty = -3.0              # 击杀队友惩罚（友伤）
+damage_reward_scale = 1.0        # 伤害奖励系数（实际奖励 = damage * scale）
+damage_penalty_scale = -1.0      # 伤害队友惩罚系数
+
+# 燃油相关奖励
+fuel_reduction_reward = 1.0      # 减少敌人燃油奖励
+fuel_reduction_penalty = -1.0    # 减少队友燃油惩罚
+
+# 电磁对抗奖励
+jam_reward = 0.1                 # 成功干扰敌人奖励（每个敌人）
+jammed_penalty = -0.1            # 被敌人干扰惩罚
