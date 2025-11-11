@@ -252,13 +252,15 @@ class UAVEnv:
     def resolve_em_warfare(self) -> None:
         """解析电磁对抗
 
-        规则：
-        1. 如果我的jam_channel == 敌人的comm_channel → 敌人被干扰
-        2. 被干扰的UAV：
-           - is_comm_jammed = True（看不到队友）
-           - 受到干扰伤害（扣HP）
-        3. 干扰成功的UAV：
-           - jam_success_count += 1
+        规则（简化版）：
+        1. comm_channel: 防御信道（我的防御频率）
+        2. jam_channel: 攻击信道（攻击敌人的频率）
+        3. 干扰成功条件：
+           - attacker.jam_channel == target.comm_channel（信道匹配）
+           - distance(attacker, target) <= visibility_range（在范围内）
+        4. 干扰效果：
+           - 目标被干扰：扣除HP
+           - 攻击者：成功干扰计数+1
         """
         # 1. 重置所有干扰状态
         for uav in self.uavs:
@@ -273,8 +275,15 @@ class UAVEnv:
                 if not target.alive or attacker.uid == target.uid:
                     continue
 
-                # 如果攻击者的干扰信道 == 目标的通信信道
-                if attacker.rf_unit.jam_channel == target.rf_unit.comm_channel:
+                # 计算距离
+                distance = math.sqrt(
+                    (attacker.x - target.x)**2 + (attacker.y - target.y)**2
+                )
+
+                # 干扰条件1：信道匹配
+                # 干扰条件2：在可见范围内
+                if (attacker.rf_unit.jam_channel == target.rf_unit.comm_channel and
+                    distance <= config.uav.visibility_range):
                     # 目标被干扰
                     target.rf_unit.is_comm_jammed = True
                     # 攻击者成功干扰计数+1
@@ -393,15 +402,18 @@ class UAVEnv:
         return reward
 
     def get_obs(self) -> Observation:
-        """获取环境观测信息
+        """获取环境观测信息（简化版）
 
         观测维度：
         - 自己信息：x, y, hp, speed, missiles, fuel, comm_ch, jam_ch (8维)
-        - 队友信息：x, y, hp, speed, missiles, fuel, comm_ch, jam_ch (8维 x 2)
-          * 如果通信被干扰，队友信息全为0
-        - 敌人信息：x, y, hp, speed, missiles, fuel, comm_ch, jam_ch (8维 x 3)
+        - 敌人信息：x, y（只有位置）(2维 x 3)
 
-        总计：8 + 16 + 24 = 48维
+        总计：8 + 6 = 14维
+
+        设计理念：
+        - 不观测队友（去中心化决策）
+        - 信道作为攻防手段，不作为通信手段
+        - comm_channel = 防御信道，jam_channel = 攻击信道
         """
         obs = {}
 
@@ -413,26 +425,9 @@ class UAVEnv:
                 uav.rf_unit.comm_channel, uav.rf_unit.jam_channel
             ]
 
-            # 队友信息（如果通信被干扰，看不到队友）
-            teammates = [u for u in self.red_uavs if u.uid != uav.uid]
-            for teammate in teammates:
-                if uav.rf_unit.is_comm_jammed:
-                    # 被干扰，看不到队友
-                    my_obs.extend([0, 0, 0, 0, 0, 0, 0, 0])
-                else:
-                    my_obs.extend([
-                        teammate.x, teammate.y, teammate.hp, teammate.speed,
-                        len(teammate.missiles), teammate.fuel,
-                        teammate.rf_unit.comm_channel, teammate.rf_unit.jam_channel
-                    ])
-
-            # 敌人信息（全局可见）
+            # 敌人信息（只有位置，视觉可见）
             for enemy in self.blue_uavs:
-                my_obs.extend([
-                    enemy.x, enemy.y, enemy.hp, enemy.speed,
-                    len(enemy.missiles), enemy.fuel,
-                    enemy.rf_unit.comm_channel, enemy.rf_unit.jam_channel
-                ])
+                my_obs.extend([enemy.x, enemy.y])
 
             obs[uav.uid] = np.array(my_obs, dtype=np.float32)
 
