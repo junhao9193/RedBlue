@@ -1,6 +1,7 @@
 # UAV_RL/pojo/RFUnit.py
 """射频单元 - 双信道电磁对抗"""
 from pathlib import Path
+import random
 import addict
 import toml
 
@@ -19,10 +20,10 @@ class RFUnit:
 
         # 信道数量（从配置文件读取）
         self.num_channels = config.RFUnit.num_channels
-        
-        # 当前使用的信道
-        self.comm_channel = 0   # 通信信道 [0-9]
-        self.jam_channel = 1    # 干扰信道 [0-9]
+
+        # 当前使用的信道（随机初始化，促进探索）
+        self.comm_channel = random.randint(0, self.num_channels - 1)   # 通信信道 [0-9]
+        self.jam_channel = random.randint(0, self.num_channels - 1)    # 干扰信道 [0-9]
         
         # 干扰状态（每回合更新）
         self.is_comm_jammed = False     # 通信是否被干扰
