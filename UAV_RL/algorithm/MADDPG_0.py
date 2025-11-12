@@ -200,11 +200,15 @@ def get_env(env_name, render_mode=False):
         else:
             dim_info[agent_id].append(env.action_space(agent_id).n)
 
-    # UAV环境: action = [angle, comm_ch, jam_ch]
-    # 动态获取信道上限（high 为 num_channels-1）
+    # UAV环境动作结构说明：action = [angle, comm_ch, jam_ch]
+    # - angle:   机动/射击角（映射到 [-2π, 2π]，正=移动，负=射击）
+    # - comm_ch: 防御信道索引（离散，范围 [0, num_channels-1]）
+    # - jam_ch:  干扰信道索引（离散，范围 [0, num_channels-1]）
+    # 动态获取信道上限（Box.high[1] 即为 num_channels-1）
     act_space = env.action_space(env.agents[0])
     num_channels_minus1 = int(act_space.high[1])
-    # max_action: [2π, num_channels-1, num_channels-1]
+    # max_action 用于把 Actor 输出的 [-1,1] 映射到环境动作域
+    # 结构：[2π, num_channels-1, num_channels-1]
     max_action = np.array([2 * math.pi, num_channels_minus1, num_channels_minus1], dtype=np.float32)
     return env, dim_info, max_action, True  # is_continue = True
 
@@ -227,36 +231,28 @@ def make_dir(env_name, policy_name='MADDPG'):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    # 环境参数
-    parser.add_argument("--env_name", type=str, default="uav_env")
-    # 共有参数
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--max_episodes", type=int, default=int(100000))
-    parser.add_argument("--save_freq", type=int, default=int(10000))
-    parser.add_argument("--start_steps", type=int, default=5000)  # 满足此开始更新
-    parser.add_argument("--random_steps", type=int, default=5000)  # 满足此开始自己探索
-    parser.add_argument("--learn_interval", type=int, default=1)  # 每个episode学习的间隔
-    # 训练参数
-    parser.add_argument("--gamma", type=float, default=0.95)
-    parser.add_argument("--tau", type=float, default=0.01)
-    ## AC参数
-    parser.add_argument("--actor_lr", type=float, default=1e-3)
-    parser.add_argument("--critic_lr", type=float, default=1e-3)
-    ## buffer参数
-    parser.add_argument("--buffer_size", type=int, default=1e6)
-    parser.add_argument("--batch_size", type=int, default=1024)
-    # 噪声参数
-    parser.add_argument("--gauss_sigma", type=float, default=0.1)  # 高斯噪声标准差
-    parser.add_argument("--gauss_scale", type=float, default=1.0)
-    # 策略名称
-    parser.add_argument("--policy_name", type=str, default='MADDPG_0')
-    # device参数
-    parser.add_argument("--device", type=str, default='cpu')  # cpu/cuda
-    # UAV环境参数
-    parser.add_argument('--policy_number', type=int, default=0, help='蓝方策略编号')
-
-    args = parser.parse_args()
+    # 将外部参数写死在程序中（不再依赖命令行）
+    from types import SimpleNamespace
+    args = SimpleNamespace(
+        env_name='uav_env',                 # 训练环境名称（此处固定为无人机电磁对抗环境）
+        seed=0,                             # 随机数种子（numpy/torch的复现实验）
+        max_episodes=int(100000),           # 最大训练回合数（episodes）
+        save_freq=int(10000),               # 模型保存频率（每多少个episodes保存一次）
+        start_steps=5000,                   # 开始学习前，需先在经验池中累计的最少交互步数
+        random_steps=5000,                  # 策略生效前的随机探索步数（小于该值则用env.sample()）
+        learn_interval=1,                   # 学习间隔（每多少个episode调用一次learn）
+        gamma=0.95,                         # 折扣因子 γ（未来回报折扣）
+        tau=0.01,                           # 软更新系数 τ（目标网络软更新）
+        actor_lr=1e-3,                      # Actor 网络学习率
+        critic_lr=1e-3,                     # Critic 网络学习率
+        buffer_size=int(1e6),               # 经验回放容量（每个agent一个buffer）
+        batch_size=1024,                    # 每次学习的批大小
+        gauss_sigma=0.1,                    # 高斯噪声标准差（探索用）
+        gauss_scale=1.0,                    # 高斯噪声缩放系数（探索强度）
+        policy_name='MADDPG_0',             # 模型保存名/日志前缀
+        device='cuda' if torch.cuda.is_available() else 'cpu',  # 设备（优先CUDA）
+        policy_number=3,                    # 蓝方对手策略编号（3=随机混合 0/1/2）
+    )
     print(args)
     print('-' * 50)
     print('Algorithm:', args.policy_name)
@@ -279,7 +275,7 @@ if __name__ == '__main__':
     print('model_dir:', model_dir)
 
     ## device参数
-    device = torch.device(args.device) if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device(args.device)
 
     ## 算法配置
     policy = MADDPG(dim_info, is_continue, args.actor_lr, args.critic_lr, args.buffer_size, device)
@@ -294,9 +290,6 @@ if __name__ == '__main__':
     train_return = {agent_id: [] for agent_id in env_agents}
 
     obs, infos = env.reset(args.policy_number)
-    # 归一化观测（若环境实现了 Normalization）
-    if hasattr(env, 'Normalization'):
-        obs = env.Normalization(obs)
 
     while episode_num < args.max_episodes:
         step += 1
@@ -309,6 +302,10 @@ if __name__ == '__main__':
 
         # 添加噪声并映射到环境动作空间
         # 角度需保留符号：angle<0 表示射击，>0 表示移动；信道映射到 [0, num_channels-1]
+        # Actor 输出 a∈[-1,1]，映射规则：
+        #   angle_actual = a_angle * 2π（保留正负号）
+        #   comm_actual  = (a_comm + 1)/2 * (num_channels-1)
+        #   jam_actual   = (a_jam  + 1)/2 * (num_channels-1)
         action_ = {}
         for agent_id in env_agents:
             noise = args.gauss_scale * np.random.normal(scale=args.gauss_sigma, size=dim_info[agent_id][1])
@@ -325,9 +322,6 @@ if __name__ == '__main__':
 
         # 探索环境
         next_obs, reward, terminated, truncated, infos = env.step(action_)
-        # 归一化下一步观测（若环境实现了 Normalization）
-        if hasattr(env, 'Normalization'):
-            next_obs = env.Normalization(next_obs)
 
         done = {agent_id: terminated[agent_id] or truncated[agent_id] for agent_id in env_agents}
         done_bool = {agent_id: terminated[agent_id] for agent_id in env_agents}
@@ -375,8 +369,6 @@ if __name__ == '__main__':
 
             episode_num += 1
             obs, infos = env.reset(args.policy_number)
-            if hasattr(env, 'Normalization'):
-                obs = env.Normalization(obs)
             episode_reward = {agent_id: 0 for agent_id in env_agents}
 
             # 满足step，更新网络

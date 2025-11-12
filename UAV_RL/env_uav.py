@@ -515,11 +515,13 @@ class UAVEnv:
         # 随机决定红蓝方动作顺序
         num = np.random.randint(2)
         if num == 0:
-            self.blue_policy(0)  # 蓝方先动
+            # 蓝方先动：使用当前设定的策略编号 self.policy
+            self.blue_policy(self.policy)
             self.assign_actions(actions)  # 红方后动
         else:
             self.assign_actions(actions)  # 红方先动
-            self.blue_policy(0)  # 蓝方后动
+            # 蓝方后动：使用当前设定的策略编号 self.policy
+            self.blue_policy(self.policy)
 
         # 解析电磁对抗（必须在导弹伤害之后）
         self.resolve_em_warfare()
