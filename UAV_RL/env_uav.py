@@ -96,6 +96,10 @@ class UAVEnv:
         self.agents_e = [uav.uid for uav in self.blue_team.uavs]
         self.episode_length = config.max_steps
 
+        # 蓝方信道轮询计数器（用于round-robin channel selection）
+        self.blue_comm_channel_cycle = 0
+        self.blue_jam_channel_cycle = 0
+
     # ==================== 环境属性 ====================
     @property
     def num_agents(self) -> int:
@@ -164,8 +168,11 @@ class UAVEnv:
         if policy_num == 0:  # 随机策略
             for uav in self.blue_uavs:
                 angle = np.random.uniform(-1, 1) * 2 * math.pi
-                comm_ch = np.random.randint(0, config.RFUnit.num_channels)
-                jam_ch = np.random.randint(0, config.RFUnit.num_channels)
+                # 使用轮询方式选择信道
+                comm_ch = self.blue_comm_channel_cycle % config.RFUnit.num_channels
+                jam_ch = self.blue_jam_channel_cycle % config.RFUnit.num_channels
+                self.blue_comm_channel_cycle += 1
+                self.blue_jam_channel_cycle += 1
                 actions[uav.uid] = np.array([angle, comm_ch, jam_ch])
 
             self.assign_actions(actions)
@@ -196,24 +203,27 @@ class UAVEnv:
 
                 # 决策：射击或移动
                 if 10 < min_dis < 20:  # 在射击范围内
-                    actions[uav.uid] = np.array([
-                        -angle,  # 负数表示射击
-                        np.random.randint(0, config.RFUnit.num_channels),
-                        np.random.randint(0, config.RFUnit.num_channels)
-                    ])
+                    # 使用轮询方式选择信道
+                    comm_ch = self.blue_comm_channel_cycle % config.RFUnit.num_channels
+                    jam_ch = self.blue_jam_channel_cycle % config.RFUnit.num_channels
+                    self.blue_comm_channel_cycle += 1
+                    self.blue_jam_channel_cycle += 1
+                    actions[uav.uid] = np.array([-angle, comm_ch, jam_ch])  # 负数表示射击
                 elif min_dis >= 20:  # 太远，靠近
-                    actions[uav.uid] = np.array([
-                        angle,  # 正数表示移动
-                        np.random.randint(0, config.RFUnit.num_channels),
-                        np.random.randint(0, config.RFUnit.num_channels)
-                    ])
+                    # 使用轮询方式选择信道
+                    comm_ch = self.blue_comm_channel_cycle % config.RFUnit.num_channels
+                    jam_ch = self.blue_jam_channel_cycle % config.RFUnit.num_channels
+                    self.blue_comm_channel_cycle += 1
+                    self.blue_jam_channel_cycle += 1
+                    actions[uav.uid] = np.array([angle, comm_ch, jam_ch])  # 正数表示移动
                 else:  # 太近，后退
                     back_angle = (angle + math.pi) % (2 * math.pi)
-                    actions[uav.uid] = np.array([
-                        back_angle,
-                        np.random.randint(0, config.RFUnit.num_channels),
-                        np.random.randint(0, config.RFUnit.num_channels)
-                    ])
+                    # 使用轮询方式选择信道
+                    comm_ch = self.blue_comm_channel_cycle % config.RFUnit.num_channels
+                    jam_ch = self.blue_jam_channel_cycle % config.RFUnit.num_channels
+                    self.blue_comm_channel_cycle += 1
+                    self.blue_jam_channel_cycle += 1
+                    actions[uav.uid] = np.array([back_angle, comm_ch, jam_ch])
 
             self.assign_actions(actions)
             self._resolve_blue_damage()
@@ -526,6 +536,10 @@ class UAVEnv:
         self.blue_team = Team("Blue")
         self.step_ = 0
         self.policy = policy_num
+
+        # 重置蓝方信道轮询计数器
+        self.blue_comm_channel_cycle = 0
+        self.blue_jam_channel_cycle = 0
 
         return self.Normalization(self.get_obs()), {}
 
