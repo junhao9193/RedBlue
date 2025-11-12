@@ -21,6 +21,10 @@ def test_policy(model_dir, policy_number=1, num_episodes=100):
         policy_number: 蓝方策略编号（0=随机，1=规则，3=混合）
         num_episodes: 测试回合数
     """
+    # 重置UAV ID计数器（避免多次测试时ID累积）
+    from pojo.Uav import Uav
+    Uav.id_counter = {"Red": 0, "Blue": 0}
+
     # 创建环境
     env = UAVEnv(render_mode=False)
 
