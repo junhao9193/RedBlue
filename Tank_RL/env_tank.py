@@ -15,7 +15,7 @@ def get_env(env_name, render_mode=False):
         is_continue: 是否为连续动作空间
     """
     # 使用 Tank_RL 内部的环境
-    if env_name == 'toy_env':
+    if env_name == 'tank_env':
         env = ToyEnv(render_mode=render_mode)
 
     env.reset()

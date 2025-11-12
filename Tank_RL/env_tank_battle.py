@@ -6,6 +6,13 @@ from pathlib import Path
 import addict
 import toml
 from gymnasium import spaces
+import time
+
+# 可视化
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 设置中文字体为SimHei
+plt.rcParams['axes.unicode_minus'] = False  # 正确显示负号
+from matplotlib.patches import Circle
 
 # 导入 Tank_RL 的 pojo 类
 from Tank_RL.pojo import Tank, Bullet
@@ -61,6 +68,10 @@ class ToyEnv:
         self.agents = [i.uid for i in self.red_team.tanks]
         self.agents_e = [i.uid for i in self.blue_team.tanks]
         self.episode_length = config.max_steps
+
+        if self.render_mode == True:
+            print('render_mode:', self.render_mode)
+            self.init_render()
 
     @property
     def num_agents(self) -> int:
@@ -341,6 +352,9 @@ class ToyEnv:
             self.assign_actions(actions)
             self.blue_policy(self.policy, self.noise_a, self.noise_b)
 
+        if self.render_mode == True:
+            self.render()
+
         r = self.get_reward()
         obs = self.get_obs()
         info = self.get_info()
@@ -360,6 +374,8 @@ class ToyEnv:
         self.noise_b = noise_b
 
         info = {}
+        if self.render_mode == True:
+            self.render()
         return self.get_obs(), info
 
     def action_space(self, agent_id) -> spaces.Space:
@@ -387,3 +403,112 @@ class ToyEnv:
                     obs[k][i+1] = (obs[k][i+1] - config.observation_space["y"][0]) / (config.observation_space["y"][1] - config.observation_space["y"][0])
 
         return obs
+    def init_render(self):
+        """初始化渲染窗口"""
+        plt.show()
+        plt.ion()  # 打开交互模式
+        self.fig, self.ax = plt.subplots(figsize=(7.5, 5))
+        self.fig.canvas.manager.set_window_title(f'{config.team.n_red_tank}v{config.team.n_blue_tank}坦克对战')
+        self.ax.set_xlim(0, config.map.width)
+        self.ax.set_ylim(0, config.map.height)
+        self.ax.set_aspect('equal')
+        self.ax.set_xticks(range(0, config.map.width + 1, 10))
+        self.ax.set_yticks(range(0, config.map.height + 1, 10))
+        self.ax.grid(True)
+
+        self.jia = False
+        self.r_color = 'r' if self.jia == False else 'b'
+        self.b_color = 'b' if self.jia == False else 'r'
+        self.r_label = '红方坦克' if self.jia == False else '蓝方坦克'
+        self.b_label = '蓝方坦克' if self.jia == False else '红方坦克'
+        self.r_bullet = '红方炮弹' if self.jia == False else '蓝方炮弹'
+        self.b_bullet = '蓝方炮弹' if self.jia == False else '红方炮弹'
+        self.r_ = '红' if self.jia == False else '蓝'
+        self.b_ = '蓝' if self.jia == False else '红'
+
+        # 显示图例
+        self.ax.legend(handles=[
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=self.r_color, markersize=10, label=self.r_label),
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=self.b_color, markersize=10, label=self.b_label),
+            plt.Line2D([0], [0], marker='.', color='w', markerfacecolor=self.r_color, markersize=10, label=self.r_bullet),
+            plt.Line2D([0], [0], marker='.', color='w', markerfacecolor=self.b_color, markersize=10, label=self.b_bullet)
+        ], bbox_to_anchor=(1.4, 1))
+
+    def render(self):
+        """渲染当前帧"""
+        # 右上角显示回合数
+        self.ax.text(18, 51, f"回合数: {self.step_}/{config.max_steps}", fontsize=12)
+
+        stars = []
+        # 渲染红方坦克
+        for t in self.red_tanks:
+            n = int(t.uid[-1])
+            _alpha = t.hp / config.tank.hp if t.hp / config.tank.hp > 0.5 else 0.5
+            self.ax.text(t.x, t.y + 0.5, f"{n}", fontsize=6, color='y', ha='center', va='center')
+            if t.alive:
+                circle = Circle((t.x, t.y), 1, color=self.r_color, fill=True, alpha=_alpha)
+                self.ax.add_patch(circle)
+                self.ax.text(t.x, t.y, f"{(t.hp):.0f}", fontsize=8, color='w', ha='center', va='center')
+            else:
+                circle = Circle((t.x, t.y), 1, color=self.r_color, fill=False)
+                self.ax.add_patch(circle)
+                self.ax.text(t.x, t.y, f"{(t.hp):.0f}", fontsize=8, color=self.r_color, ha='center', va='center')
+
+            for b in t.consumed_bullets:
+                b_circle = Circle((b.x, b.y), 5, color=self.r_color, fill=False, linestyle='--')
+                self.ax.add_patch(b_circle)
+                star = self.ax.plot(b.x, b.y, marker='.', color=self.r_color)
+                stars.append(star)
+
+        # 渲染蓝方坦克
+        for t in self.blue_tanks:
+            n = int(t.uid[-1])
+            _alpha = t.hp / config.tank.hp if t.hp / config.tank.hp > 0.5 else 0.5
+            self.ax.text(t.x, t.y + 0.5, f"{n}", fontsize=6, color='y', ha='center', va='center')
+            if t.alive:
+                circle = Circle((t.x, t.y), 1, color=self.b_color, fill=True, alpha=_alpha)
+                self.ax.add_patch(circle)
+                self.ax.text(t.x, t.y, f"{(t.hp):.0f}", fontsize=8, color='w', ha='center', va='center')
+            else:
+                circle = Circle((t.x, t.y), 1, color=self.b_color, fill=False)
+                self.ax.add_patch(circle)
+                self.ax.text(t.x, t.y, f"{(t.hp):.0f}", fontsize=8, color=self.b_color, ha='center', va='center')
+
+            for b in t.consumed_bullets:
+                b_circle = Circle((b.x, b.y), 5, color=self.b_color, fill=False, linestyle='--')
+                self.ax.add_patch(b_circle)
+                star = self.ax.plot(b.x, b.y, marker='.', color=self.b_color)
+                stars.append(star)
+
+        # 画表
+        self.ax.table(
+            cellText=[(f"{t.hp:.2f}", len(t.bullets), int(t.fuel)) for t in self.tanks],
+            rowLabels=[self.r_ + t.uid[-1] for t in self.red_tanks] + [self.b_ + t.uid[-1] for t in self.blue_tanks],
+            colLabels=["生命值", "弹药量", "燃油量"],
+            colWidths=[0.10, 0.10, 0.10],
+            rowLoc="center",
+            cellLoc="center",
+            bbox=[1.1, 0, 0.30, 0.60],
+        )
+
+        self.fig.canvas.flush_events()
+        self.fig.canvas.draw_idle()
+        time.sleep(1)
+
+        # 清除画面
+        for text in list(self.ax.texts):
+            text.remove()
+
+        if len(stars) > 0:
+            for star_list in stars:
+                for star in star_list:
+                    star.remove()
+
+        for _t in self.ax.tables:
+            _t.remove()
+
+        for patch in self.ax.patches:
+            patch.remove()
+
+        for line in self.ax.lines:
+            line.remove()
