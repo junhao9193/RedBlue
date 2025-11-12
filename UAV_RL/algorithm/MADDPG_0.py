@@ -19,7 +19,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import numpy as np
-from Buffer import Buffer
+# 导入UAV专用Buffer
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.Buffer import Buffer
 
 from copy import deepcopy
 import gymnasium as gym
