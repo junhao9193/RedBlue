@@ -235,6 +235,10 @@ class UAVEnv:
         """按照uid匹配并执行动作
 
         :param actions: {uid: [angle, comm_ch, jam_ch]}
+
+        规则：
+        - angle < 0: 射击状态，可以更改信道
+        - angle >= 0: 移动或不动，不能更改信道
         """
         for uid, action in actions.items():
             uav = None
@@ -248,15 +252,14 @@ class UAVEnv:
 
             angle, comm_ch, jam_ch = action[0], int(action[1]), int(action[2])
 
-            # 设置信道（会消耗燃油）
-            uav.rf_unit.set_channels(comm_ch, jam_ch)
-
             # 移动或射击
-            if angle > 0:  # 移动
+            if angle > 0:  # 移动（不改变信道）
                 uav.move(angle)
-            elif angle < 0:  # 射击
+            elif angle < 0:  # 射击（可以改变信道）
+                # 只有在射击状态下才能设置信道（会消耗燃油）
+                uav.rf_unit.set_channels(comm_ch, jam_ch)
                 uav.shoot(abs(angle))
-            else:  # angle == 0, 不动
+            else:  # angle == 0, 不动（不改变信道）
                 uav.speed = 0
 
     def resolve_em_warfare(self) -> None:
