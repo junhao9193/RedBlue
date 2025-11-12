@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import math
 from env_uav import UAVEnv
-from MADDPG_0 import MADDPG
+from algorithm.MADDPG_0 import MADDPG
 
 def test_policy(model_dir, policy_number=1, num_episodes=100):
     """
@@ -110,15 +110,19 @@ def test_policy(model_dir, policy_number=1, num_episodes=100):
 
 
 if __name__ == '__main__':
-    # 修改为你的模型路径
-    model_dir = r"d:\CodesFile\RedBlue\UAV_RL\results\uav_env\MADDPG_0_2"
-
-    # 如果在Linux上，使用相对路径
+    # 使用相对路径（从Eval文件夹向上一级，再到results）
+    model_dir = os.path.join(
+        os.path.dirname(__file__),
+        '../results/uav_env/MADDPG_0_1'
+    )
+    # 如果相对路径不存在，尝试绝对路径
     if not os.path.exists(model_dir):
-        model_dir = os.path.join(
-            os.path.dirname(__file__),
-            '../results/uav_env/MADDPG_0_2'
-        )
+        model_dir = r"d:\CodesFile\RedBlue\UAV_RL\results\uav_env\MADDPG_0_1"
+
+    if not os.path.exists(model_dir):
+        print(f"错误：模型目录不存在: {model_dir}")
+        print("请修改 model_dir 变量为正确的模型路径")
+        sys.exit(1)
 
     print("="*50)
     print("MADDPG模型测试")

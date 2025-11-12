@@ -93,7 +93,7 @@ def plot_training_results(model_dir, policy_name='MADDPG_0', seed=0):
 
 if __name__ == '__main__':
     # 修改为你的模型路径
-    model_dir = r"d:\CodesFile\RedBlue\UAV_RL\results\uav_env\MADDPG_0_2"
+    model_dir = r"d:\CodesFile\RedBlue\UAV_RL\results\uav_env\MADDPG_0_1"
 
     # 如果在Linux上，使用相对路径
     if not os.path.exists(model_dir):
