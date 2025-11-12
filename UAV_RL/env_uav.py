@@ -162,6 +162,7 @@ class UAVEnv:
         0: 随机策略
         1: 简单规则策略（向最近敌人靠近并攻击）
         2: 不动策略
+        3: 随机混合策略（每次随机选择策略0、1或2）
         """
         actions = {}
 
@@ -222,6 +223,11 @@ class UAVEnv:
 
         elif policy_num == 2:  # 不动策略
             pass
+
+        elif policy_num == 3:  # 随机混合策略
+            # 随机选择策略0、1或2
+            selected_policy = np.random.randint(3)
+            self.blue_policy(selected_policy)
 
     def assign_actions(self, actions: dict[str, Action]) -> None:
         """按照uid匹配并执行动作
