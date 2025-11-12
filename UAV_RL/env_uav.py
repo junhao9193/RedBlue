@@ -165,20 +165,18 @@ class UAVEnv:
         """
         actions = {}
 
-        if policy_num == 0:  # 随机策略
+        if policy_num == 0:  # 随机策略（蓝方信道按轮询选取，但仅在实际切换时推进计数器）
             for uav in self.blue_uavs:
                 angle = np.random.uniform(-1, 1) * 2 * math.pi
-                # 使用轮询方式选择信道
+                # 使用当前轮询指针选择信道（计数器推进放在实际切换处）
                 comm_ch = self.blue_comm_channel_cycle % config.RFUnit.num_channels
                 jam_ch = self.blue_jam_channel_cycle % config.RFUnit.num_channels
-                self.blue_comm_channel_cycle += 1
-                self.blue_jam_channel_cycle += 1
                 actions[uav.uid] = np.array([angle, comm_ch, jam_ch])
 
             self.assign_actions(actions)
             self._resolve_blue_damage()
 
-        elif policy_num == 1:  # 简单规则策略
+        elif policy_num == 1:  # 简单规则策略（蓝方信道按轮询选取，但仅在实际切换时推进计数器）
             for uav in self.blue_uavs:
                 if not uav.alive:
                     continue
@@ -203,26 +201,20 @@ class UAVEnv:
 
                 # 决策：射击或移动
                 if 10 < min_dis < 20:  # 在射击范围内
-                    # 使用轮询方式选择信道
+                    # 使用当前轮询指针选择信道（计数器推进放在实际切换处）
                     comm_ch = self.blue_comm_channel_cycle % config.RFUnit.num_channels
                     jam_ch = self.blue_jam_channel_cycle % config.RFUnit.num_channels
-                    self.blue_comm_channel_cycle += 1
-                    self.blue_jam_channel_cycle += 1
                     actions[uav.uid] = np.array([-angle, comm_ch, jam_ch])  # 负数表示射击
                 elif min_dis >= 20:  # 太远，靠近
-                    # 使用轮询方式选择信道
+                    # 使用当前轮询指针选择信道（计数器推进放在实际切换处）
                     comm_ch = self.blue_comm_channel_cycle % config.RFUnit.num_channels
                     jam_ch = self.blue_jam_channel_cycle % config.RFUnit.num_channels
-                    self.blue_comm_channel_cycle += 1
-                    self.blue_jam_channel_cycle += 1
                     actions[uav.uid] = np.array([angle, comm_ch, jam_ch])  # 正数表示移动
                 else:  # 太近，后退
                     back_angle = (angle + math.pi) % (2 * math.pi)
-                    # 使用轮询方式选择信道
+                    # 使用当前轮询指针选择信道（计数器推进放在实际切换处）
                     comm_ch = self.blue_comm_channel_cycle % config.RFUnit.num_channels
                     jam_ch = self.blue_jam_channel_cycle % config.RFUnit.num_channels
-                    self.blue_comm_channel_cycle += 1
-                    self.blue_jam_channel_cycle += 1
                     actions[uav.uid] = np.array([back_angle, comm_ch, jam_ch])
 
             self.assign_actions(actions)
@@ -237,8 +229,9 @@ class UAVEnv:
         :param actions: {uid: [angle, comm_ch, jam_ch]}
 
         规则：
-        - angle < 0: 射击状态，可以更改信道
-        - angle >= 0: 移动或不动，不能更改信道
+        - angle < 0: 射击状态，可以更改信道并开火
+        - angle == 0: 停止状态，只更改信道，不开火
+        - angle > 0: 移动状态，不更改信道
         """
         for uid, action in actions.items():
             uav = None
@@ -252,15 +245,22 @@ class UAVEnv:
 
             angle, comm_ch, jam_ch = action[0], int(action[1]), int(action[2])
 
-            # 移动或射击
+            # 移动/停下/射击
             if angle > 0:  # 移动（不改变信道）
                 uav.move(angle)
-            elif angle < 0:  # 射击（可以改变信道）
-                # 只有在射击状态下才能设置信道（会消耗燃油）
+            elif angle < 0:  # 射击（先更改信道，再开火）
                 uav.rf_unit.set_channels(comm_ch, jam_ch)
+                # 蓝方信道轮询计数器仅在实际切换时推进
+                if uav.team == "Blue":
+                    self.blue_comm_channel_cycle = (self.blue_comm_channel_cycle + 1)
+                    self.blue_jam_channel_cycle = (self.blue_jam_channel_cycle + 1)
                 uav.shoot(abs(angle))
-            else:  # angle == 0, 不动（不改变信道）
+            else:  # angle == 0, 停止（只更改信道，不开火）
                 uav.speed = 0
+                uav.rf_unit.set_channels(comm_ch, jam_ch)
+                if uav.team == "Blue":
+                    self.blue_comm_channel_cycle = (self.blue_comm_channel_cycle + 1)
+                    self.blue_jam_channel_cycle = (self.blue_jam_channel_cycle + 1)
 
     def resolve_em_warfare(self) -> None:
         """解析电磁对抗
