@@ -238,20 +238,20 @@ if __name__ == '__main__':
         seed=0,                             # 随机数种子（numpy/torch的复现实验）
         max_episodes=int(100000),           # 最大训练回合数（episodes）
         save_freq=int(10000),               # 模型保存频率（每多少个episodes保存一次）
-        start_steps=3000,                   # 开始学习前，需先在经验池中累计的最少交互步数
+        start_steps=3000,                   # 开始学习前，需先在经验池中累计的最少交互步数（降低门槛）
         random_steps=3000,                  # 策略生效前的随机探索步数（小于该值则用env.sample()）
         learn_interval=1,                   # 学习间隔（每多少个episode调用一次learn）
         gamma=0.95,                         # 折扣因子 γ（未来回报折扣）
         tau=0.01,                           # 软更新系数 τ（目标网络软更新）
-        actor_lr=3e-4,                      # Actor 网络学习率
-        critic_lr=3e-4,                     # Critic 网络学习率
+        actor_lr=3e-4,                      # Actor 网络学习率（降低以更稳定学习）
+        critic_lr=3e-4,                     # Critic 网络学习率（降低以更稳定学习）
         buffer_size=int(1e6),               # 经验回放容量（每个agent一个buffer）
-        batch_size=512,                    # 每次学习的批大小
-        gauss_sigma=0.15,                    # 高斯噪声标准差（探索用）
+        batch_size=512,                     # 每次学习的批大小（减小以更频繁更新）
+        gauss_sigma=0.15,                   # 高斯噪声标准差（增加探索）
         gauss_scale=1.0,                    # 高斯噪声缩放系数（探索强度）
         policy_name='MADDPG_0',             # 模型保存名/日志前缀
         device='cuda' if torch.cuda.is_available() else 'cpu',  # 设备（优先CUDA）
-        policy_number=3,                    # 蓝方对手策略编号（3=随机混合 0/1/2）
+        policy_number=1,                    # 蓝方对手策略编号（1=规则策略：攻击最近敌人）
     )
     print(args)
     print('-' * 50)
