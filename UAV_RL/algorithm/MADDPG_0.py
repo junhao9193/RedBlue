@@ -199,8 +199,11 @@ def get_env(env_name, render_mode=False):
             dim_info[agent_id].append(env.action_space(agent_id).n)
 
     # UAV环境: action = [angle, comm_ch, jam_ch]
+    # 动态获取信道上限（high 为 num_channels-1）
+    act_space = env.action_space(env.agents[0])
+    num_channels_minus1 = int(act_space.high[1])
     # max_action: [2π, num_channels-1, num_channels-1]
-    max_action = np.array([2 * math.pi, 9, 9])  # 根据配置，信道范围是[0-9]
+    max_action = np.array([2 * math.pi, num_channels_minus1, num_channels_minus1], dtype=np.float32)
     return env, dim_info, max_action, True  # is_continue = True
 
 
@@ -289,7 +292,9 @@ if __name__ == '__main__':
     train_return = {agent_id: [] for agent_id in env_agents}
 
     obs, infos = env.reset(args.policy_number)
-    # obs已经在env.reset()中归一化了
+    # 归一化观测（若环境实现了 Normalization）
+    if hasattr(env, 'Normalization'):
+        obs = env.Normalization(obs)
 
     while episode_num < args.max_episodes:
         step += 1
@@ -300,25 +305,27 @@ if __name__ == '__main__':
         else:
             action = policy.select_action(obs)
 
-        # 添加噪声（3维动作空间，分别加噪声）
+        # 添加噪声并映射到环境动作空间
+        # 角度需保留符号：angle<0 表示射击，>0 表示移动；信道映射到 [0, num_channels-1]
         action_ = {}
         for agent_id in env_agents:
-            # action: [-1, 1], 需要映射到实际范围
-            # action[agent_id] 是 [angle_norm, comm_ch_norm, jam_ch_norm]
             noise = args.gauss_scale * np.random.normal(scale=args.gauss_sigma, size=dim_info[agent_id][1])
-            action_with_noise = action[agent_id] + noise
+            action_with_noise = action[agent_id] + noise  # [-1,1] + 噪声
 
-            # 映射到实际范围: [-1,1] -> [0, max_action]
-            # angle: [-1,1] -> [0, 2π]
-            # comm_ch: [-1,1] -> [0, 9]
-            # jam_ch: [-1,1] -> [0, 9]
-            action_actual = (action_with_noise + 1) / 2 * max_action  # [-1,1] -> [0, max_action]
-            action_actual = np.clip(action_actual, 0, max_action)
-            action_[agent_id] = action_actual
+            # angle 映射到 [-2π, 2π]，保留正负号用于区分移动/射击
+            angle = np.clip(action_with_noise[0], -1.0, 1.0) * (2 * math.pi)
+
+            # 通道维度映射到 [0, num_channels-1]
+            comm = np.clip((action_with_noise[1] + 1.0) / 2.0 * max_action[1], 0.0, max_action[1])
+            jam = np.clip((action_with_noise[2] + 1.0) / 2.0 * max_action[2], 0.0, max_action[2])
+
+            action_[agent_id] = np.array([angle, comm, jam], dtype=np.float32)
 
         # 探索环境
         next_obs, reward, terminated, truncated, infos = env.step(action_)
-        # next_obs已经在env.step()中归一化了
+        # 归一化下一步观测（若环境实现了 Normalization）
+        if hasattr(env, 'Normalization'):
+            next_obs = env.Normalization(next_obs)
 
         done = {agent_id: terminated[agent_id] or truncated[agent_id] for agent_id in env_agents}
         done_bool = {agent_id: terminated[agent_id] for agent_id in env_agents}
@@ -366,6 +373,8 @@ if __name__ == '__main__':
 
             episode_num += 1
             obs, infos = env.reset(args.policy_number)
+            if hasattr(env, 'Normalization'):
+                obs = env.Normalization(obs)
             episode_reward = {agent_id: 0 for agent_id in env_agents}
 
             # 满足step，更新网络
