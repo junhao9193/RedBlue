@@ -642,3 +642,52 @@ class UAVEnv:
             normalized_obs[k] = obs_copy
 
         return normalized_obs
+
+
+def get_env(env_name, render_mode=False):
+    """获取环境并返回维度信息
+
+    Args:
+        env_name: 环境名称
+        render_mode: 是否渲染
+
+    Returns:
+        env: 环境实例
+        dim_info: 维度信息字典 {agent_id: [obs_dim, action_dim]}
+        max_action: 最大动作值 [2π, num_channels-1, num_channels-1]
+        is_continue: 是否为连续动作空间
+    """
+    import gymnasium as gym
+    import math
+
+    # 创建UAV环境
+    if env_name == 'uav_env':
+        env = UAVEnv(render_mode=render_mode)
+    else:
+        raise ValueError(f"Unknown environment: {env_name}")
+
+    env.reset()
+
+    # 获取维度信息
+    dim_info = {}
+    for agent_id in env.agents:
+        dim_info[agent_id] = []
+        if isinstance(env.observation_space(agent_id), gym.spaces.Box):
+            dim_info[agent_id].append(env.observation_space(agent_id).shape[0])
+        else:
+            dim_info[agent_id].append(1)
+        if isinstance(env.action_space(agent_id), gym.spaces.Box):
+            dim_info[agent_id].append(env.action_space(agent_id).shape[0])
+        else:
+            dim_info[agent_id].append(env.action_space(agent_id).n)
+
+    # 获取最大动作值
+    # UAV环境动作结构：action = [angle, comm_ch, jam_ch]
+    # - angle:   机动/射击角（映射到 [-2π, 2π]）
+    # - comm_ch: 防御信道索引（离散，范围 [0, num_channels-1]）
+    # - jam_ch:  干扰信道索引（离散，范围 [0, num_channels-1]）
+    act_space = env.action_space(env.agents[0])
+    num_channels_minus1 = int(act_space.high[1])
+    max_action = np.array([2 * math.pi, num_channels_minus1, num_channels_minus1], dtype=np.float32)
+
+    return env, dim_info, max_action, True  # is_continue = True

@@ -11,7 +11,8 @@ import numpy as np
 import math
 from types import SimpleNamespace
 from env_uav import UAVEnv
-from MADDPG_0 import MADDPG, make_dir
+from UAV_RL.algorithm.MADDPG import MADDPG
+from UAV_RL.utils.common import make_dir
 from torch.utils.tensorboard import SummaryWriter
 import time
 
