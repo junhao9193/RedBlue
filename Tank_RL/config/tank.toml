@@ -1,0 +1,21 @@
+max_steps = 30  # 最大episode长度
+
+[map]
+width = 50  # 地图宽度
+height = 50  # 地图高度
+
+[team]
+n_red_tank = 3  # 红方坦克数量
+n_blue_tank = 3  # 蓝方坦克数量
+
+[tank]
+hp = 10  # 生命值
+fuel = 30  # 燃油量
+speed = 5  # 移速
+bullet_num = 10  # 弹药量
+shoot_distance = 15  # 射击距离
+visibility_range = 25  # 可见范围
+
+[bullet]
+damage_radius = 5  # 毁伤范围
+damage = 3  # 最大伤害值
