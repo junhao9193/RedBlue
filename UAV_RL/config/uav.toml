@@ -12,7 +12,7 @@ fuel = 30 # 燃油量
 speed = 5 # 移速
 missile_num  = 10 # 导弹数量
 shoot_distance = 15 # 射击距离
-visibility_range = 2 # 可见范围
+visibility_range = 25 # 可见范围
 
 [missile] # 导弹相关设置
 damage_radius = 5 # 毁伤范围
@@ -21,10 +21,10 @@ damage = 3 # 最大伤害值
 [RFUnit]
 num_channels = 10  # 信道数量（可调整）
 # 信道切换成本
-comm_switch_cost = 0.1  # 切换通信信道消耗燃油
-jam_switch_cost = 0.1   # 切换干扰信道消耗燃油
+comm_switch_cost = 0.5  # 切换通信信道消耗燃油
+jam_switch_cost = 0.5   # 切换干扰信道消耗燃油
 # 干扰效果
-jam_damage = 0.1        # 每步被干扰扣除HP（直接伤害）
+jam_damage = 0.3        # 每步被干扰扣除HP（直接伤害）
 
 [reward]
 # 基础奖励
