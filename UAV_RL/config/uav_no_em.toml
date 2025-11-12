@@ -1,0 +1,44 @@
+max_steps = 30 # 最大episode长度
+[map]
+width = 50 # 地图宽度
+height = 50 # 地图高度
+[team]
+n_red_uav = 3 # 红方无人机数量
+n_blue_uav = 3 # 蓝方无人机数量
+
+[uav] # 无人机相关设置
+hp = 10 # 生命值
+fuel = 30 # 燃油量
+speed = 5 # 移速
+missile_num  = 10 # 导弹数量
+shoot_distance = 15 # 射击距离
+visibility_range = 25 # 可见范围
+
+[missile] # 导弹相关设置
+damage_radius = 5 # 毁伤范围
+damage = 3 # 最大伤害值
+
+[RFUnit]
+num_channels = 0  # 信道数量设为0（禁用电磁攻击）
+# 信道切换成本
+comm_switch_cost = 0.0  # 设为0
+jam_switch_cost = 0.0   # 设为0
+# 干扰效果
+jam_damage = 0.0        # 设为0（关键！电磁伤害为0）
+
+[reward]
+# 基础奖励（与坦克环境一致）
+wall_collision_penalty = -0.1   # 碰壁惩罚
+kill_reward = 3.0                # 击杀敌人奖励
+kill_penalty = -3.0              # 击杀队友惩罚
+damage_reward_scale = 1.0        # 伤害奖励系数
+damage_penalty_scale = -1.0      # 伤害队友惩罚系数
+
+# 燃油相关奖励
+fuel_reduction_reward = 1.0      # 减少敌人燃油奖励
+fuel_reduction_penalty = -1.0    # 减少队友燃油惩罚
+
+# 电磁对抗奖励（全部设为0，禁用）
+jam_reward = 0.0                 # 设为0
+jam_ally_penalty = 0.0           # 设为0
+jammed_penalty = 0.0             # 设为0
