@@ -52,6 +52,9 @@ class Config:
     # 环境策略参数
     policy_number = 1  # 蓝方对手策略编号（1=规则策略：攻击最近敌人）
 
+    # 课程学习参数
+    win_rate_adjust = 0.03  # 胜率阈值，初始3%
+
 
 if __name__ == '__main__':
     # 加载配置
@@ -97,6 +100,8 @@ if __name__ == '__main__':
     win_list = []  # 一般胜
     win1_list = []  # 大奖励（全灭敌人）
     win2_list = []  # 截断胜利（HP优势）
+    policy_up = 0  # 策略提升计数器
+    episode_temp = 0  # 记录上次调整的episode
 
     # 训练
     episode_num = 0
@@ -169,9 +174,30 @@ if __name__ == '__main__':
                 win1_rate = np.mean(win1_list[-100:])
                 win2_rate = np.mean(win2_list[-100:])
 
+                # ========== 自适应课程学习机制 ==========
+                # 策略提升：当胜率达到阈值时，减少探索噪声并提高难度
+                if win1_rate >= cfg.win_rate_adjust:
+                    policy_up += 1
+                    cfg.gauss_sigma = cfg.gauss_sigma * 0.9  # 逐步降低探索噪声
+
+                    if win1_rate >= 0.10 or policy_up > 20:
+                        cfg.win_rate_adjust += 0.02  # 提高胜率阈值，增加难度
+                        episode_temp = episode_num
+                    print(f'策略提升{policy_up}, gauss_sigma={cfg.gauss_sigma:.4f}, win_rate_adjust={cfg.win_rate_adjust:.2f}')
+
+                # 动态调整：如果长时间没有进步，降低难度避免训练卡死
+                if win1_rate >= 0.10 or policy_up > 20:
+                    if episode_num - episode_temp > 10000:
+                        cfg.win_rate_adjust -= 0.01  # 降低胜率阈值
+                        cfg.gauss_sigma = cfg.gauss_sigma * 0.9  # 继续降低噪声
+                        episode_temp = episode_num
+                        print(f'策略调整{policy_up}adjust, gauss_sigma={cfg.gauss_sigma:.4f}, win_rate_adjust={cfg.win_rate_adjust:.2f}')
+                # ========================================
+
                 writer.add_scalar('win_rate', win_rate, episode_num)
                 writer.add_scalar('win1_rate', win1_rate, episode_num)
                 writer.add_scalar('win2_rate', win2_rate, episode_num)
+                writer.add_scalar('gauss_sigma', cfg.gauss_sigma, episode_num)  # 记录噪声变化
 
                 # 显示UAV状态
                 message += f'red_hp:'
@@ -186,6 +212,7 @@ if __name__ == '__main__':
 
                 message += f'win rate: {win_rate:.2f}; '
                 message += f'win1 rate: {win1_rate:.2f}; '
+                message += f'noise: {cfg.gauss_sigma:.4f}; '
                 print(message)
 
             for agent_id, r in episode_reward.items():

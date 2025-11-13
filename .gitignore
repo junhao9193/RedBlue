@@ -17,3 +17,4 @@ __pycache__/
 .pytest_cache/v/cache/stepwise
 Test/
 Archive/
+Docs/
