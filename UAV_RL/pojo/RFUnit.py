@@ -6,7 +6,7 @@ import addict
 import toml
 
 # 加载配置
-config = addict.Dict(toml.load(Path(__file__).parent.parent / "config" / "uav.toml"))
+config = addict.Dict(toml.load("UAV_RL/config/uav.toml"))
 
 
 class RFUnit:

@@ -236,12 +236,12 @@ if __name__ == '__main__':
 
     # 保存数据
     train_return_ = np.array([train_return[agent_id] for agent_id in env.agents])
-    np.save(os.path.join(model_dir, f"{cfg.policy_name}_seed_{cfg.seed}.npy"), train_return_)
+    np.save(f"{model_dir}/{cfg.policy_name}_seed_{cfg.seed}.npy", train_return_)
 
     # 保存win、win1 和 win2
     win_list = np.array(win_list)
     win1_list = np.array(win1_list)
     win2_list = np.array(win2_list)
-    np.save(os.path.join(model_dir, f"{cfg.policy_name}_seed_{cfg.seed}_win.npy"), win_list)
-    np.save(os.path.join(model_dir, f"{cfg.policy_name}_seed_{cfg.seed}_win1.npy"), win1_list)
-    np.save(os.path.join(model_dir, f"{cfg.policy_name}_seed_{cfg.seed}_win2.npy"), win2_list)
+    np.save(f"{model_dir}/{cfg.policy_name}_seed_{cfg.seed}_win.npy", win_list)
+    np.save(f"{model_dir}/{cfg.policy_name}_seed_{cfg.seed}_win1.npy", win1_list)
+    np.save(f"{model_dir}/{cfg.policy_name}_seed_{cfg.seed}_win2.npy", win2_list)

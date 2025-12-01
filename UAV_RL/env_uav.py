@@ -27,11 +27,9 @@ config.observation_space = {
 }
 
 # 导入UAV相关类
-import sys
-sys.path.append(str(Path(__file__).parent))
-from pojo.Uav import Uav
-from pojo.Missile import Missile
-from pojo.RFUnit import RFUnit
+from UAV_RL.pojo.Uav import Uav
+from UAV_RL.pojo.Missile import Missile
+from UAV_RL.pojo.RFUnit import RFUnit
 
 # 类型定义
 TeamName = Literal["Red", "Blue"]
